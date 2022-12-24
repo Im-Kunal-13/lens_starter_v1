@@ -11,10 +11,11 @@ import { refreshAuthToken, splitSignature } from '../utils'
 
 const projectId = process.env.NEXT_PUBLIC_PROJECT_ID
 const projectSecret = process.env.NEXT_PUBLIC_PROJECT_SECRET
-const auth = 'Basic ' + Buffer.from(projectId + ':' + projectSecret).toString('base64');
+console.log("log => ", projectId, projectSecret)
+const auth = 'Basic ' + Buffer.from("2JLNgU9PMefQ07844egPKLls1e0" + ':' + "497091cb34cb4acb7f5164df32a4cd57").toString('base64');
 
 const client = create({
-  host: 'ipfs.infura.io',
+  host: 'filecoin.infura.io',
   port: 5001,
   protocol: 'https',
   headers: {
@@ -27,6 +28,40 @@ export default function CreatePostModal({
 }) {
   const { profile } = useContext(AppContext)
   const inputRef = useRef(null)
+
+  // PINATA - needs Pinata API key AND Secret Key
+  async function pinMetadataToPinata() {
+    console.log("pinning metadata to pinata...");
+    const data = JSON.stringify({
+      pinataMetadata: { name: "GM" },
+      pinataContent: {
+        version: '2.0.0',
+        content: inputRef.current.innerHTML,
+      description: inputRef.current.innerHTML,
+      name: `Post by @${profile.handle}`,
+      external_url: `https://lenster.xyz/u/${profile.handle}`,
+      metadata_id: uuid(),
+      mainContentFocus: 'TEXT_ONLY',
+      attributes: [],
+      locale: 'en-US',
+      },
+    });
+    const config = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        pinata_api_key: process.env.NEXT_PUBLIC_PINATA_API_KEY,
+        pinata_secret_api_key: process.env.NEXT_PUBLIC_PINATA_SECRET_API_KEY,
+      },
+      body: data,
+    };
+    const response = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", config);
+    const ipfsHash = (await response.json()).IpfsHash;
+    console.log(`Stored content metadata with ${ipfsHash}`);
+    return `ipfs://${ipfsHash}`;
+  }
+
+  // INFURA - needs Infura Project ID and SECRET
   async function uploadToIPFS() {
     const metaData = {
       version: '2.0.0',
@@ -42,11 +77,12 @@ export default function CreatePostModal({
 
     const added = await client.add(JSON.stringify(metaData))
     const uri = `https://ipfs.infura.io/ipfs/${added.path}`
+    console.log(uri)
     return uri
   }
 
   async function savePost() {
-    const contentURI = await uploadToIPFS()
+    const contentURI = await pinMetadataToPinata()
     const { accessToken } = await refreshAuthToken()
     const createPostRequest = {
       profileId: profile.id,

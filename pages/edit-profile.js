@@ -32,6 +32,8 @@ export default function EditProfile() {
   const context = useContext(AppContext)
   const { profile } = context
 
+  console.log(profile.id)
+
   async function updateProfile() {
     if (!updatedProfile) return
 
@@ -58,9 +60,23 @@ export default function EditProfile() {
       newMeta.cover_picture = null
     }
 
-    const added = await client.add(JSON.stringify(newMeta))
 
-    const newMetadataURI = `https://ipfs.infura.io/ipfs/${added.path}`
+    const config = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        pinata_api_key: process.env.NEXT_PUBLIC_PINATA_API_KEY,
+        pinata_secret_api_key: process.env.NEXT_PUBLIC_PINATA_SECRET_API_KEY,
+      },
+      body: JSON.stringify(newMeta),
+    };
+    const response = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", config);
+    const ipfsHash = (await response.json()).IpfsHash;
+    console.log(`Stored content metadata with ${ipfsHash}`);
+    const newMetadataURI = `ipfs://${ipfsHash}`;
+
+    
+
 
     // using the GraphQL API may be unnecessary
     // if you are not using gasless transactions

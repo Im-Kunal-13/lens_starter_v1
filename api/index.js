@@ -19,6 +19,7 @@ export async function fetchProfile(id) {
     const profileData = returnedProfile.data.profiles.items[0]
     profileData.color = generateRandomColor()
     const pubs = await urqlClient.query(getPublications, { id, limit: 50 }).toPromise()
+    console.log(id)
     return {
       profile: profileData,
       publications: pubs.data.publications.items
